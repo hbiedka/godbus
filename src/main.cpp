@@ -5,8 +5,8 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-#include "ds18b20.h"
-#include "diagLed.h"
+#include "device/ds18b20.h"
+#include "device/diagLed.h"
 
 // MAC address must be unique on your network
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
