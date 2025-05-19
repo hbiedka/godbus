@@ -1,0 +1,36 @@
+#ifndef DS18B20_H
+#define DS18B20_H
+
+
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Arduino.h>
+
+enum class DS18B20State {
+    STARTING,   // started but not data available yet
+    IDLE,
+    PENDING,    // waiting for the sensor to respond
+    ERROR
+};
+
+class DS18B20 {
+    private:
+        OneWire oneWire;
+        DallasTemperature sensor;
+        int pin;
+        float temperature;
+
+        unsigned long ts;
+        unsigned long readInterval = 5000;
+        unsigned long pendingInterval = 750;
+        unsigned long reconnectInterval = 30000;
+        DS18B20State state = DS18B20State::STARTING;
+        
+    public:
+        DS18B20(int pin);
+        bool spin();
+        float get();
+        String serialize();
+};
+
+#endif

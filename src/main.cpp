@@ -1,7 +1,12 @@
+#include <Arduino.h>
+
 #include <SPI.h>
 #include <Ethernet.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+
+#include "ds18b20.h"
+#include "diagLed.h"
 
 // MAC address must be unique on your network
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -16,17 +21,16 @@ IPAddress ip(192, 168, 2, 177);
 #define RELAY1_PIN 15
 #define RELAY2_PIN 16
 
-// OneWire instances
-OneWire oneWire1(SENSOR1_PIN);
-OneWire oneWire2(SENSOR2_PIN);
-
-// DallasTemperature instances
-DallasTemperature sensor1(&oneWire1);
-DallasTemperature sensor2(&oneWire2);
+#define DIAG_LED 3
 
 // Initialize the Ethernet server
 EthernetServer server(80);
 
+DS18B20 sensor1(SENSOR1_PIN);
+DS18B20 sensor2(SENSOR2_PIN);
+
+// Initialize the diagnostic LED
+DiagLed diagLed(DIAG_LED);
 
 void setup() {
   Serial.begin(9600);
@@ -34,11 +38,6 @@ void setup() {
 
   pinMode(RELAY1_PIN, OUTPUT);
   pinMode(RELAY2_PIN, OUTPUT);
-
-  sensor1.begin();
-  sensor2.begin();
-  sensor1.setWaitForConversion(false);
-  sensor2.setWaitForConversion(false);
 
   // Start Ethernet connection
   Ethernet.begin(mac, ip);
@@ -62,16 +61,21 @@ void setup() {
 
   // Start listening for clients
   server.begin();
+
+  diagLed.blink();
 }
 
-float temp1 = 0;
-float temp2 = 0;
-bool pending = false;
-unsigned long lastMillis = 0;
-unsigned long pendingPeriod = 750;
-unsigned long interval = 2000; // Interval to read temperature
-
 void loop() {
+
+  bool busy = false;
+  busy |= sensor1.spin();
+  busy |= sensor2.spin();
+  diagLed.spin();
+
+  if (busy) {
+    diagLed.blink();
+  }
+
   EthernetClient client = server.available();
   if (client) {
     Serial.println("New client");
@@ -108,10 +112,10 @@ void loop() {
       Serial.println("Relay 2 OFF");
     } else {
       client.print("Sensor 1: ");
-      client.print(temp1);
+      client.print(sensor1.serialize());
       client.print(" °C\n");
       client.print("Sensor 2: ");
-      client.print(temp2);
+      client.print(sensor2.serialize());
       client.print(" °C\n");
       client.print("Client IP: ");
       client.print(client.remoteIP());
@@ -121,32 +125,5 @@ void loop() {
     delay(1);
     client.stop();
     Serial.println("Client disconnected");
-  }
-  else {
-    if (pending) {
-      if (millis() - lastMillis > pendingPeriod) {
-        lastMillis = millis();
-        pending = false;
-
-        temp1 = sensor1.getTempCByIndex(0);
-        temp2 = sensor2.getTempCByIndex(0);
-        
-        Serial.print("Sensor 1: ");
-        Serial.print(temp1);
-        Serial.print(" °C, Sensor 2: ");
-        Serial.print(temp2);
-        Serial.println(" °C");
-
-      }
-    } else {
-      if (millis() - lastMillis > interval) {
-        pending = true;
-        lastMillis = millis();
-        Serial.print("Requesting temperatures...");
-
-        sensor1.requestTemperatures();
-        sensor2.requestTemperatures();
-      }
-    }
   }
 }
