@@ -7,7 +7,7 @@ class DiagLed {
     private:
         int pin;
         unsigned long ts;
-        unsigned long blinkInterval = 100;
+        unsigned long blinkInterval = 50;
         bool state = false;
 
     public:
