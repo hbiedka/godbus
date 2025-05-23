@@ -5,6 +5,8 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#include "http.h"
+#include "interval.h"
 #include "device/ds18b20.h"
 #include "device/diagLed.h"
 #include "device/binaryInput.h"
@@ -29,7 +31,7 @@ IPAddress ip(192, 168, 1, 177);
 #define DIAG_LED 3
 
 // Initialize the Ethernet server
-EthernetServer server(80);
+Http httpServer;
 
 DS18B20 sensor1(SENSOR1_PIN);
 DS18B20 sensor2(SENSOR2_PIN);
@@ -44,12 +46,11 @@ BinaryOutput relay2(RELAY2_PIN);
 // Initialize the diagnostic LED
 DiagLed diagLed(DIAG_LED);
 
+IntervalOperation updateResponse(1000); // 1 second interval for updating the response
+
 void setup() {
   Serial.begin(9600);
   while (!Serial);
-
-  pinMode(RELAY1_PIN, OUTPUT);
-  pinMode(RELAY2_PIN, OUTPUT);
 
   // Start Ethernet connection
   Ethernet.begin(mac, ip);
@@ -71,15 +72,13 @@ void setup() {
   Serial.print("Server is at ");
   Serial.println(Ethernet.localIP());
 
-  // Start listening for clients
-  server.begin();
-
   diagLed.blink();
 }
 
 void loop() {
 
   bool busy = false;
+  busy |= httpServer.spin();
   busy |= sensor1.spin();
   busy |= sensor2.spin();
   busy |= in1.spin();
@@ -90,66 +89,10 @@ void loop() {
     diagLed.blink();
   }
 
-  EthernetClient client = server.available();
-  if (client) {
-    Serial.println("New client");
-
-    // Wait until client sends data
-    while (client.connected() && !client.available()) {
-      delay(1);
-    }
-
-    String req = client.readStringUntil('\r');
-    Serial.println(req);
-    client.flush();
-
-    // Simple HTTP response
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: text/plain");
-    client.println("Connection: close");
-    client.println();
-
-    if (req.indexOf("GET /relay1/on") != -1) {
-      relay1.set(true);
-      Serial.println("Relay 1 ON");
-    }
-    else if (req.indexOf("GET /relay1/off") != -1) {
-      relay1.set(false);
-      Serial.println("Relay 1 OFF");
-    }
-    else if (req.indexOf("GET /relay2/on") != -1) {
-      relay2.set(true);
-      Serial.println("Relay 2 ON");
-    }
-    else if (req.indexOf("GET /relay2/off") != -1) {
-      relay2.set(false);
-      Serial.println("Relay 2 OFF");
-    } else {
-      client.print("Sensor 1: ");
-      client.print(sensor1.serialize());
-      client.print(" °C\n");
-      client.print("Sensor 2: ");
-      client.print(sensor2.serialize());
-      client.print(" °C\n");
-      client.print("Input 1: ");
-      client.print(in1.serialize());
-      client.print("\n");
-      client.print("Input 2: ");
-      client.print(in2.serialize());
-      client.print("\n");
-      client.print("Relay 1: ");
-      client.print(relay1.serialize());
-      client.print("\n");
-      client.print("Relay 2: ");
-      client.print(relay2.serialize());
-      client.print("\n");
-      client.print("Client IP: ");
-      client.print(client.remoteIP());
-      client.print("\n");    
-    }
-
-    delay(1);
-    client.stop();
-    Serial.println("Client disconnected");
+  // Update the response every second
+  if (updateResponse.trig()) {
+    String response = "{\"sensor_1\": " + sensor1.serialize() + ", \"sensor_2\": " + sensor2.serialize() + "}";
+    httpServer.setResponse(response);
   }
+
 }
