@@ -2,8 +2,9 @@
 #define BINARY_OUTPUT_H
 
 #include <Arduino.h>
+#include "device.h"
 
-class BinaryOutput {
+class BinaryOutput : public Device {
     private:
         int pin;
         unsigned long ts;
@@ -11,9 +12,9 @@ class BinaryOutput {
 
     public:
         BinaryOutput(int pin);
-        bool spin();
-        void set(bool value);
-        String serialize();
+        bool spin() override;
+        void set(const setValue &value) override;
+        String serialize() override;
 };
 
 #endif

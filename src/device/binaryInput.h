@@ -2,6 +2,7 @@
 #define BINARY_INPUT_H
 
 #include <Arduino.h>
+#include "device.h"
 
 enum class InputState {
     OFF,
@@ -10,18 +11,19 @@ enum class InputState {
     DEBOUNCE_OFF
 };
 
-class BinaryInput {
+class BinaryInput : public Device {
     private:
         int pin;
         unsigned long ts;
         unsigned long debounceInterval = 50;
         InputState state = InputState::OFF;
 
+        bool getState();
     public:
         BinaryInput(int pin);
-        bool spin();
-        bool get();
-        String serialize();
+        bool spin() override;
+        void get(setValue &value) override;
+        String serialize() override;
 };
 
 #endif

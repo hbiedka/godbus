@@ -6,6 +6,8 @@
 #include <DallasTemperature.h>
 #include <Arduino.h>
 
+#include "device.h"
+
 enum class DS18B20State {
     STARTING,   // started but not data available yet
     IDLE,
@@ -13,7 +15,7 @@ enum class DS18B20State {
     ERROR
 };
 
-class DS18B20 {
+class DS18B20 : public Device {
     private:
         OneWire oneWire;
         DallasTemperature sensor;
@@ -28,9 +30,9 @@ class DS18B20 {
         
     public:
         DS18B20(int pin);
-        bool spin();
-        float get();
-        String serialize();
+        bool spin() override;
+        void get(setValue &value) override;
+        String serialize() override;
 };
 
 #endif

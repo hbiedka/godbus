@@ -45,9 +45,15 @@ bool BinaryInput::spin() {
     return busy;
 }
 
-bool BinaryInput::get() {
+void BinaryInput::get(setValue &value) {
+    value.b = getState();
+}
+
+bool BinaryInput::getState() {
     return state == InputState::ON || state == InputState::DEBOUNCE_OFF;
 }
+
 String BinaryInput::serialize() {
-    return String(get());
+    return String(getState());
 }
+

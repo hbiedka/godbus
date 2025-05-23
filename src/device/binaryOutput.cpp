@@ -7,11 +7,12 @@ BinaryOutput::BinaryOutput(int _pin) {
 }
 
 bool BinaryOutput::spin() {
+    return false; // No periodic action needed
 }
 
-void BinaryOutput::set(bool value) {
-    digitalWrite(pin, value);
-    state = value;
+void BinaryOutput::set(const setValue& value) {
+    state = value.b;
+    digitalWrite(pin, state);
     ts = millis();
 }
 

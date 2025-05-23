@@ -52,8 +52,8 @@ bool DS18B20::spin() {
     return busy;
 }
 
-float DS18B20::get() {
-    return temperature;
+void DS18B20::get(setValue &value) {
+    value.f = temperature;
 }
 
 String DS18B20::serialize() {
