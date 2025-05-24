@@ -20,7 +20,7 @@ class BinaryInput : public Device {
 
         bool getState();
     public:
-        BinaryInput(int pin);
+        BinaryInput(String _name, int _pin);
         bool spin() override;
         void get(setValue &value) override;
         String serialize() override;

@@ -1,6 +1,7 @@
 #include "ds18b20.h"
 
-DS18B20::DS18B20(int _pin) {
+DS18B20::DS18B20(String _name, int _pin) {
+    name = _name;
     pin = _pin;
     oneWire = OneWire(pin);
     sensor = DallasTemperature(&oneWire);

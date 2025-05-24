@@ -29,7 +29,7 @@ class DS18B20 : public Device {
         DS18B20State state = DS18B20State::STARTING;
         
     public:
-        DS18B20(int pin);
+        DS18B20(String _name, int _pin);
         bool spin() override;
         void get(setValue &value) override;
         String serialize() override;

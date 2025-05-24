@@ -11,7 +11,7 @@ class BinaryOutput : public Device {
         bool state = false;
 
     public:
-        BinaryOutput(int pin);
+        BinaryOutput(String _name, int _pin);
         bool spin() override;
         void set(const setValue &value) override;
         String serialize() override;

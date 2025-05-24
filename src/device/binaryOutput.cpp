@@ -1,6 +1,7 @@
 #include "binaryOutput.h"
 
-BinaryOutput::BinaryOutput(int _pin) {
+BinaryOutput::BinaryOutput(String _name, int _pin) {
+    name = _name;
     pin = _pin;
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
