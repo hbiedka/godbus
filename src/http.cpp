@@ -60,6 +60,8 @@ bool Http::spin() {
             break;
         case HttpState::SENDING_RESPONSE:
             busy = true;
+            // Prepare the response
+            prepareResponse();
             
             // Send a simple HTTP response
             client.println("HTTP/1.1 200 OK");
@@ -75,4 +77,16 @@ bool Http::spin() {
             
     }
     return busy;
+}
+
+void Http::prepareResponse() {
+    response = "{";
+    for (Device** dev = devices; *dev != nullptr; ++dev) {
+        if (response.length() > 1) {
+            response += ", ";
+        }
+        response += "\"" + String((*dev)->getName()) + "\": \"" + String((*dev)->serialize()) + "\"";
+    }
+    response += "}";
+    Serial.println("Prepared response: " + response);
 }

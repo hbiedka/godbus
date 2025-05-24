@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <Ethernet.h>
 
+#include "device/device.h"
+
 enum class HttpState {
     NOT_STARTED,
     LISTEN,
@@ -15,13 +17,16 @@ enum class HttpState {
 class Http {
 private:
     EthernetServer server;
+    Device** devices = nullptr; // Array to hold device pointers, adjust size as needed
     EthernetClient client;
     HttpState state = HttpState::NOT_STARTED;
     String request;
     String response;
+    void prepareResponse();
 public:
-    Http() :
-        server(80)  // Initialize the Ethernet server on port 80
+    Http(Device** _devices) :
+        server(80),  // Initialize the Ethernet server on port 80
+        devices(_devices)
     {}
 
     void setResponse(const String& resp);

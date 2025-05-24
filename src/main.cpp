@@ -61,7 +61,7 @@ Device* devices[] = {
 };
 
 // Initialize the Ethernet server
-Http httpServer;
+Http httpServer(devices);
 
 
 // Initialize the diagnostic LED
