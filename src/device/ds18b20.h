@@ -33,6 +33,7 @@ class DS18B20 : public Device {
         bool spin() override;
         void get(setValue &value) override;
         String serialize() override;
+        setValueType getType() override { return setValueType::FLOAT; }
 };
 
 #endif

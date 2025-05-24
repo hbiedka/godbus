@@ -24,6 +24,7 @@ class BinaryInput : public Device {
         bool spin() override;
         void get(setValue &value) override;
         String serialize() override;
+        setValueType getType() override { return setValueType::BOOL; }
 };
 
 #endif

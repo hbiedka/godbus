@@ -15,6 +15,7 @@ class BinaryOutput : public Device {
         bool spin() override;
         void set(const setValue &value) override;
         String serialize() override;
+        setValueType getType() override { return setValueType::BOOL; }
 };
 
 #endif
