@@ -7,7 +7,6 @@ union setValue {
     bool b;
     int i;
     float f;
-    String s;
 };
 
 enum class setValueType {
@@ -17,16 +16,30 @@ enum class setValueType {
     STRING
 };
 
+enum class setterOutput {
+    OK,
+    NOT_SUPPORTED,
+    READ_ONLY,
+    INVALID_VALUE,
+    ERROR
+};
+
 class Device {
 protected:
     String name = "Unnamed Device";
 public:
     virtual bool spin() = 0;
-    virtual String serialize() = 0;
     virtual setValueType getType() = 0;
-    virtual void set(const setValue&) {};
+    virtual String serialize() = 0;
+    
     virtual void get(setValue&) {};
     virtual String getName() const { return name; }
+    virtual setterOutput set(const setValue&) { 
+        return setterOutput::NOT_SUPPORTED; 
+    };
+    virtual setterOutput deserialize(const String& value) {
+        return setterOutput::NOT_SUPPORTED;
+    }
 
     virtual ~Device() {}
 };
