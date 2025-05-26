@@ -70,24 +70,11 @@ DiagLed diagLed(DIAG_LED);
 IntervalOperation updateResponse(1000); // 1 second interval for updating the response
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial);
 
   // Start Ethernet connection
   Ethernet.begin(mac, ip);
-
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found.");
-  }
-  else if (Ethernet.hardwareStatus() == EthernetW5100) {
-    Serial.println("W5100 Ethernet controller detected.");
-  }
-  else if (Ethernet.hardwareStatus() == EthernetW5200) {
-    Serial.println("W5200 Ethernet controller detected.");
-  }
-  else if (Ethernet.hardwareStatus() == EthernetW5500) {
-    Serial.println("W5500 Ethernet controller detected.");
-  }
 
   delay(1000);
   Serial.print("Server is at ");
@@ -106,20 +93,16 @@ void loop() {
 
   bool busy = false;
   busy |= httpServer.spin();
-  busy |= sensor1.spin();
-  busy |= sensor2.spin();
-  busy |= in1.spin();
-  busy |= in2.spin();
+
+  // Spin through all devices
+  for (Device** dev = devices; *dev != nullptr; ++dev) {
+    busy |= (*dev)->spin();
+  }
+
   diagLed.spin();
 
   if (busy) {
     diagLed.blink();
-  }
-
-  // Update the response every second
-  if (updateResponse.trig()) {
-    String response = "{\"sensor_1\": " + sensor1.serialize() + ", \"sensor_2\": " + sensor2.serialize() + "}";
-    httpServer.setResponse(response);
   }
 
 }

@@ -20,8 +20,10 @@ private:
     Device** devices = nullptr; // Array to hold device pointers, adjust size as needed
     EthernetClient client;
     HttpState state = HttpState::NOT_STARTED;
+    int statuscode = 200; // Default status code
     String request;
     String response;
+    void processRequest();
     void prepareResponse();
 public:
     Http(Device** _devices) :
