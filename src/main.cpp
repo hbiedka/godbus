@@ -24,6 +24,7 @@ void loop() {
 
   bool busy = false;
   busy |= httpServer.spin();
+  busy |= modbusServer.spin(); // Spin the Modbus server
 
   // Spin through all devices
   for (Device** dev = devices; *dev != nullptr; ++dev) {

@@ -6,7 +6,10 @@
 #include <DallasTemperature.h>
 
 #include "http.h"
+#include "net/modbus.h"
+
 #include "interval.h"
+
 #include "device/ds18b20.h"
 #include "device/diagLed.h"
 #include "device/binaryInput.h"
@@ -63,6 +66,8 @@ Device* devices[] = {
 // Initialize the Ethernet server
 Http httpServer(devices);
 
+// Initialize the Modbus server
+Modbus modbusServer(502); // Modbus TCP server on port 502
 
 // Initialize the diagnostic LED
 DiagLed diagLed(DIAG_LED);
