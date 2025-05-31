@@ -1,7 +1,7 @@
 #include "ds18b20.h"
 
 DS18B20::DS18B20(String _name, int _pin) {
-    name = _name;
+    strncpy(name, _name.c_str(), MAX_NAME_SIZE - 1);
     pin = _pin;
     oneWire = OneWire(pin);
     sensor = DallasTemperature(&oneWire);

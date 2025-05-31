@@ -1,7 +1,7 @@
 #include "binaryOutput.h"
 
 BinaryOutput::BinaryOutput(String _name, int _pin) {
-    name = _name;
+    strncpy(name, _name.c_str(), MAX_NAME_SIZE - 1);
     pin = _pin;
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);

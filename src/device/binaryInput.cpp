@@ -1,7 +1,7 @@
 #include "binaryInput.h"
 
 BinaryInput::BinaryInput(String _name, int _pin) {
-    name = _name;
+    strncpy(name, _name.c_str(), MAX_NAME_SIZE - 1);
     pin = _pin;
     pinMode(pin, INPUT_PULLUP);
     state = InputState::OFF;

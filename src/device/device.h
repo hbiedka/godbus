@@ -24,16 +24,18 @@ enum class setterOutput {
     ERROR
 };
 
+#define MAX_NAME_SIZE 16
+
 class Device {
 protected:
-    String name = "Unnamed Device";
+    char name[MAX_NAME_SIZE] = "Unnamed";
 public:
     virtual bool spin() = 0;
     virtual setValueType getType() = 0;
     virtual String serialize() = 0;
     
     virtual void get(setValue&) {};
-    virtual String getName() const { return name; }
+    virtual const char* getName() { return name; }
     virtual setterOutput set(const setValue&) { 
         return setterOutput::NOT_SUPPORTED; 
     };
