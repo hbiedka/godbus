@@ -11,10 +11,6 @@ String decodeStatusCode(int code) {
     }
 }
 
-void Http::setResponse(const String& resp) {
-    response = resp;
-}
-
 bool Http::spin() {
     bool busy = false;
 
@@ -23,7 +19,6 @@ bool Http::spin() {
             // Start the server
             if (Ethernet.hardwareStatus() != EthernetNoHardware) {
                 server.begin();
-                Serial.println("Server started");
                 state = HttpState::LISTEN;
                 busy = true;
             }
@@ -33,7 +28,6 @@ bool Http::spin() {
             // Check for incoming clients
             client = server.available();
             if (client) {
-                Serial.println("New client");
                 request = "";
                 state = HttpState::RECV_REQUEST;
             }
@@ -48,7 +42,6 @@ bool Http::spin() {
                     char c = client.read();
                     if (c == '\r') {
                         // End of request
-                        Serial.println(request);
                         // Send response
                         state = HttpState::FLUSHING;
                         break;
@@ -88,7 +81,7 @@ bool Http::spin() {
 
 void Http::processRequest() {
     // Process the request here
-    response = "{}";
+    snprintf(response, MAX_RESPONSE_SIZE, "{}");
     
     //get URL from request
     int start = request.indexOf("GET ") + 4; // 5 is the length of "GET /"
@@ -99,7 +92,6 @@ void Http::processRequest() {
     }
 
     if (start == -1 || end == -1) {
-        // response = "{\"status\": \"error\", \"message\": \"Invalid request format\"}";
         statuscode = 400; // Bad Request
         return;
     }
@@ -115,7 +107,6 @@ void Http::processRequest() {
         //process url /device_id/state
         int deviceIdEnd = url.indexOf('/', 1); // Find the first '/' after the initial '/'
         if (deviceIdEnd == -1) {
-            // response = "{\"status\": \"error\", \"message\": \"Invalid URL format\"}";
             statuscode = 400; // Bad Request
             return;
         }
@@ -124,15 +115,14 @@ void Http::processRequest() {
 
         // Find the device by ID
         for (Device** dev = devices; *dev != nullptr; ++dev) {
-            if ((*dev)->getName() == deviceId) {
+            if (strncmp((*dev)->getName(), deviceId.c_str(), MAX_NAME_SIZE) == 0) {
                 // Device found, set the state
                 setterOutput result = (*dev)->deserialize(state);
 
                 if (result == setterOutput::OK) {
-                    response = "{\"status\": \"OK\"}";
+                    snprintf(response, MAX_RESPONSE_SIZE, "{\"status\": \"OK\"}");
                     statuscode = 200; // OK
                 } else {
-                    // response = "{\"status\": \"error\", \"message\": \"Failed to set state\", \"code\": " + String(static_cast<int>(result)) + "}";
                     statuscode = 500; // Internal Server Error
                 }
                 return;
@@ -144,12 +134,34 @@ void Http::processRequest() {
 }
 
 void Http::prepareResponse() {
-    response = "{";
+    size_t responseLength = 0;
+    bool first = true;
+
+    // Prepare the response with all devices
+    responseLength += snprintf(response, MAX_RESPONSE_SIZE, "{");
+    
     for (Device** dev = devices; *dev != nullptr; ++dev) {
-        if (response.length() > 1) {
-            response += ", ";
+        if (!first) {
+            responseLength += snprintf(&response[responseLength], 
+                MAX_RESPONSE_SIZE - responseLength, 
+                ", "
+            );
         }
-        response += "\"" + String((*dev)->getName()) + "\": \"" + String((*dev)->serialize()) + "\"";
+        first = false;
+
+        // Serialize the device and add it to the response
+        const char* deviceName = (*dev)->getName();
+        String deviceData = (*dev)->serialize();
+        
+        responseLength += snprintf(&response[responseLength], 
+            MAX_RESPONSE_SIZE - responseLength,
+            "\"%s\": \"%s\"", 
+            deviceName, 
+            deviceData.c_str()
+        );
     }
-    response += "}";
+    responseLength += snprintf(&response[responseLength], 
+        MAX_RESPONSE_SIZE - responseLength, 
+        "}"
+    );
 }

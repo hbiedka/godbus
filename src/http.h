@@ -6,6 +6,8 @@
 
 #include "device/device.h"
 
+#define MAX_RESPONSE_SIZE 256
+
 enum class HttpState {
     NOT_STARTED,
     LISTEN,
@@ -22,7 +24,7 @@ private:
     HttpState state = HttpState::NOT_STARTED;
     int statuscode = 200; // Default status code
     String request;
-    String response;
+    char response[MAX_RESPONSE_SIZE]; // Buffer for the response;
     void processRequest();
     void prepareResponse();
 public:
@@ -31,7 +33,6 @@ public:
         devices(_devices)
     {}
 
-    void setResponse(const String& resp);
     bool spin();
 };
 
