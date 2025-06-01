@@ -8,7 +8,7 @@ void setup() {
   Ethernet.begin(mac, ip);
 
   delay(1000);
-  Serial.print("Server is at ");
+  Serial.print("IP: ");
   Serial.println(Ethernet.localIP());
 
   diagLed.blink();
@@ -24,7 +24,10 @@ void loop() {
 
   bool busy = false;
   busy |= httpServer.spin();
+
+#ifdef USE_MODBUS
   busy |= modbusServer.spin(); // Spin the Modbus server
+#endif
 
   // Spin through all devices
   for (Device** dev = devices; *dev != nullptr; ++dev) {

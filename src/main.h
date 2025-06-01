@@ -1,3 +1,5 @@
+#define USE_MODBUS // Uncomment to enable Modbus support
+
 #include <Arduino.h>
 
 #include <SPI.h>
@@ -6,7 +8,10 @@
 #include <DallasTemperature.h>
 
 #include "http.h"
+
+#ifdef USE_MODBUS
 #include "net/modbus.h"
+#endif // USE_MODBUS
 
 #include "interval.h"
 
@@ -66,8 +71,15 @@ Device* devices[] = {
 // Initialize the Ethernet server
 Http httpServer(devices);
 
+#ifdef USE_MODBUS
+ModbusNode modbusNodes[] = {
+    ModbusNode{&sensor1, setValueType::FLOAT, 0, 1,10}, // Sensor 1
+    ModbusNode{&sensor2, setValueType::FLOAT, 1, 1,10}, // Sensor 2
+    {} // sentinel node
+};
 // Initialize the Modbus server
-Modbus modbusServer(502); // Modbus TCP server on port 502
+Modbus modbusServer(modbusNodes); // Modbus TCP server on port 502
+#endif // USE_MODBUS
 
 // Initialize the diagnostic LED
 DiagLed diagLed(DIAG_LED);

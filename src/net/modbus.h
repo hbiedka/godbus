@@ -5,6 +5,25 @@
 #include <Arduino.h>
 #include <Ethernet.h>
 
+#include "device/device.h"
+
+struct ModbusNode {
+    Device *dev; // Pointer to the device
+    setValueType type; // Type of the device value
+    unsigned int startAddress; // Starting address for the device
+    unsigned int quantity = 1; // Number of registers for the device
+    float multiplier = 1.0; // Multiplier for the value
+
+    ModbusNode(Device *device, setValueType valueType, unsigned int address, 
+               unsigned int qty = 1, float mult = 1.0) 
+        : dev(device), type(valueType), startAddress(address), 
+          quantity(qty), multiplier(mult) {}
+          
+    //sentinel constructor for ModbusNode
+    ModbusNode() : dev(nullptr), type(setValueType::INT), startAddress(0), 
+                quantity(1), multiplier(1.0) {} // Default constructor
+};
+
 enum class ModbusState {
     NOT_STARTED,
     LISTEN,
@@ -58,18 +77,33 @@ private:
     int sendbufLength = 0; // Length of the send buffer
 
     // example register table for testing purposes
-    int exampleRegisterTable[10] = {0, 145, 217, 3442, 4119, 5927, 611, 77, 80, 925};
+    // int exampleRegisterTable[10] = {0, 145, 217, 3442, 4119, 5927, 611, 77, 80, 925};
+
+    ModbusNode *registerTable = nullptr; // Pointer to the example register table
 
     ModbusState state = ModbusState::NOT_STARTED;
 
     public:
-    Modbus(uint16_t port = 502) : server(port) {}
+    Modbus(ModbusNode *regs, uint16_t port) : 
+        server(port) 
+    {
+        registerTable = regs; // Initialize the register table with the provided nodes
+    };
+    Modbus(ModbusNode *regs) : 
+    server(502) // Default Modbus TCP port
+    {
+        registerTable = regs; // Initialize the register table with the provided nodes
+    };
     bool spin();
     void processRequest();
     int modbusQuery(const ModbusFunctionCode &functionCode, 
                     unsigned char *rqPayload, 
                     const int &rqPayloadLength, 
                     unsigned char *outputBuf, 
-                    const int &maxOutputBufLength);
+                    const unsigned int &maxOutputBufLength);
+    ModbusExceptionCode getRegisters(unsigned int startAddress, 
+                     unsigned int quantity, 
+                     unsigned char *outputBuf, 
+                     const unsigned int &maxOutputBufLength);
 };
 #endif // __MODBUS_H__

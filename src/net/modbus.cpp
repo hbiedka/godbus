@@ -14,7 +14,6 @@ bool Modbus::spin() {
         case ModbusState::LISTEN:
             client = server.available();
             if (client) {
-                Serial.println("New Modbus client connected");
                 mbapReceived = 0; // Reset the MBAP received counter
                 state = ModbusState::RECV_MBAP;
                 busy = true;
@@ -71,7 +70,6 @@ bool Modbus::spin() {
             if (client.connected()) {
                 client.write(sendbuf, sendbufLength);
                 // client.stop(); // Close the connection
-                Serial.println("Resp sent");
                 state = ModbusState::LISTEN; // Go back to listening for new clients
                 busy = true;
             }
@@ -84,11 +82,8 @@ bool Modbus::spin() {
 void Modbus::processRequest() {
     
     //validate the MBAP header
-    int tid = (mbap[0] << 8) | mbap[1]; // Transaction ID
     int pid = (mbap[2] << 8) | mbap[3]; // Protocol ID
-
     if (pid != 0) {
-        Serial.println("Inv PID");
         return; // Only Protocol ID 0 is valid for Modbus
     }
 
@@ -99,23 +94,6 @@ void Modbus::processRequest() {
     unsigned char *rqPayload = &pdu[1]; // Pointer to the payload data in the PDU
     int rqPayloadLength = pduLength - 1; // Length of the payload (excluding function code)
 
-    Serial.print("TID=");
-    Serial.print(tid, HEX);
-    Serial.print(", PID=");
-    Serial.print(pid, HEX);
-    Serial.print(", UID=");
-    Serial.print(unitId, HEX);
-    Serial.print(", Code=");
-    Serial.print((unsigned char)functionCode, HEX);
-    Serial.print(", Len=");
-    Serial.println(rqPayloadLength);
-    Serial.print("Payload: ");
-    for (int i = 0; i < rqPayloadLength; i++) {
-        Serial.print(rqPayload[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println();
-    
     sendbuf[0] = mbap[0]; // Transaction ID
     sendbuf[1] = mbap[1];
     sendbuf[2] = 0; // Protocol ID (always 0 for Modbus)
@@ -131,8 +109,6 @@ void Modbus::processRequest() {
         outputBufLength
     );
 
-    //generate response ILLEGAL FUNCTION
-
     // Length of the MBAP header (PDU len + 1)
     sendbuf[4] = 0;
     sendbuf[5] = respPayloadLength + 1;
@@ -140,24 +116,12 @@ void Modbus::processRequest() {
     // Set the length of the response buffer
     sendbufLength = mbapLength + respPayloadLength; // 7 bytes for MBAP + 2 bytes for PDU (function code + exception code)
     
-    Serial.print("SendResp TID=");
-    Serial.print(sendbuf[0], HEX);
-    Serial.print(", PID=");
-    Serial.print(sendbuf[2], HEX);
-    Serial.print(", UID=");
-    Serial.print(sendbuf[6], HEX);
-    Serial.print(", FCode=");
-    Serial.print(sendbuf[7], HEX);
-    Serial.print(", ExcCode=");
-    Serial.println(sendbuf[8], HEX);
-    
-
 }
 int Modbus::modbusQuery(const ModbusFunctionCode &functionCode, 
                 unsigned char *rqPayload, 
                 const int &rqPayloadLength, 
                 unsigned char *outputBuf, 
-                const int &maxOutputBufLength) {
+                const unsigned int &maxOutputBufLength) {
 
     if (rqPayload == nullptr || outputBuf == nullptr || maxOutputBufLength <= 0) {
         return 0; // Invalid parameters
@@ -165,7 +129,7 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
 
     ModbusExceptionCode exceptionCode = ModbusExceptionCode::SUCCESS;
 
-    int respPayloadLength = 0; // Length of the response payload
+    unsigned int respPayloadLength = 0; // Length of the response payload
     // switch()
     switch(functionCode) {
         case ModbusFunctionCode::READ_INPUT_REGISTERS:
@@ -177,8 +141,7 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
             unsigned int startAddress = (rqPayload[0] << 8) | rqPayload[1]; // Get the starting address
             unsigned int quantity = (rqPayload[2] << 8) | rqPayload[3]; // Get the quantity of registers
 
-            if (startAddress < 0 || startAddress >= sizeof(exampleRegisterTable) / sizeof(exampleRegisterTable[0]) ||
-                quantity <= 0 || startAddress + quantity > sizeof(exampleRegisterTable) / sizeof(exampleRegisterTable[0])) {
+            if (startAddress < 0) {
                 exceptionCode = ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Invalid address or quantity
                 break;
             }
@@ -188,15 +151,11 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
 
             if (respPayloadLength > maxOutputBufLength) {
                 //the buffer is too small to hold the response
-                Serial.println("Buffer too small");
                 exceptionCode = ModbusExceptionCode::SLAVE_DEVICE_FAILURE;
                 break;
             }
 
-            for (unsigned int i = 0; i < quantity; i++) {
-                outputBuf[2 + i * 2] = (exampleRegisterTable[startAddress + i] >> 8) & 0xFF; // High byte
-                outputBuf[3 + i * 2] = exampleRegisterTable[startAddress + i] & 0xFF; // Low byte
-            }
+            exceptionCode = getRegisters(startAddress, quantity, &outputBuf[2], maxOutputBufLength - 2);
             
             break;
         }
@@ -217,4 +176,83 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
     }
 
     return respPayloadLength; // Return the length of the response payload
+}
+
+ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress, 
+                                          unsigned int quantity, 
+                                          unsigned char *outputBuf, 
+                                          const unsigned int &maxOutputBufLength) {
+    if (registerTable == nullptr || outputBuf == nullptr || maxOutputBufLength <= 0) {
+        return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Invalid parameters
+    }
+
+    // Prepare the response
+    unsigned int addr = startAddress;
+    unsigned int endAddress = startAddress + quantity;
+
+    int regValue = 0; // Initialize the register value
+    setValue value; // Initialize the value to be written
+
+    bool found = false; // Flag to check if the address was found in the register table
+    while (addr < endAddress) {
+        found = false; // Reset the found flag for each address
+
+        // Find the corresponding ModbusNode for the address
+        for (ModbusNode *node = registerTable; node->dev != nullptr; ++node) {
+            if (node->startAddress == addr) {
+
+                Serial.print("node_addr=");
+                Serial.println(addr);
+                // Serial.print("node=");
+                // Serial.println(node->dev->getName());
+
+                // Check if the output buffer has enough space
+                if ((addr - startAddress) * 2 + 1 >= maxOutputBufLength) {
+                    return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Buffer too small
+                }
+
+                node->dev->get(value); // Get the current value from the device
+
+                // Write the value to the output buffer
+                switch (node->type) {
+                    case setValueType::BOOL:
+                        // BOOL type not supported in this function
+                        // call getCoils or getDiscreteInputs instead
+                        return ModbusExceptionCode::ILLEGAL_DATA_VALUE; 
+
+                    case setValueType::INT:
+                        regValue = value.i * node->multiplier; // Get the integer value
+                        break;
+                    case setValueType::FLOAT: {
+                        regValue = static_cast<unsigned int>(value.f * node->multiplier);
+                        break;
+                    }
+                    default:
+                        return ModbusExceptionCode::ILLEGAL_DATA_VALUE; // Unsupported type
+                }
+
+                // Write the register value to the output buffer
+                unsigned int offset = (addr - startAddress) * 2; // Calculate the offset in the output buffer
+                if (offset + 1 >= maxOutputBufLength) {
+                    return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Buffer too small
+                }
+                outputBuf[offset] = (regValue >> 8) & 0xFF; // High byte
+                outputBuf[offset + 1] = regValue & 0xFF; // Low byte
+                
+                //TODO support muliple registers
+                addr++;
+
+                found = true; // Address found in the register table
+                break; // Move to the next address
+            }
+        }
+
+        // If the address was not found in the register table, continue to the next address
+        if (!found) {
+            Serial.print(addr);
+            Serial.println(" not found");
+            return ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Address not found
+        }
+    }
+    return ModbusExceptionCode::SUCCESS; // Success
 }
