@@ -1,4 +1,5 @@
 #define USE_MODBUS // Uncomment to enable Modbus support
+#define USE_HTTP // Uncomment to enable HTTP server support
 
 #include <Arduino.h>
 
@@ -7,7 +8,9 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-#include "http.h"
+#ifdef USE_HTTP
+#include "net/http.h"
+#endif // USE_HTTP
 
 #ifdef USE_MODBUS
 #include "net/modbus.h"
@@ -68,8 +71,10 @@ Device* devices[] = {
     nullptr // Null-terminated list
 };
 
+#ifdef USE_HTTP
 // Initialize the Ethernet server
 Http httpServer(devices);
+#endif // USE_HTTP
 
 #ifdef USE_MODBUS
 ModbusNode modbusNodes[] = {

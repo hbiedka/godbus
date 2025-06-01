@@ -201,11 +201,6 @@ ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress,
         for (ModbusNode *node = registerTable; node->dev != nullptr; ++node) {
             if (node->startAddress == addr) {
 
-                Serial.print("node_addr=");
-                Serial.println(addr);
-                // Serial.print("node=");
-                // Serial.println(node->dev->getName());
-
                 // Check if the output buffer has enough space
                 if ((addr - startAddress) * 2 + 1 >= maxOutputBufLength) {
                     return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Buffer too small
@@ -249,8 +244,6 @@ ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress,
 
         // If the address was not found in the register table, continue to the next address
         if (!found) {
-            Serial.print(addr);
-            Serial.println(" not found");
             return ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Address not found
         }
     }

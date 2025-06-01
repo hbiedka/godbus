@@ -23,7 +23,10 @@ void setup() {
 void loop() {
 
   bool busy = false;
+
+#ifdef USE_HTTP
   busy |= httpServer.spin();
+#endif // USE_HTTP
 
 #ifdef USE_MODBUS
   busy |= modbusServer.spin(); // Spin the Modbus server
