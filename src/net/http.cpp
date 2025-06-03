@@ -1,16 +1,5 @@
 #include "http.h"
 
-//static
-String decodeStatusCode(int code) {
-    switch(code) {
-        case 200: return "OK";
-        case 400: return "Bad Request";
-        case 404: return "Not Found";
-        case 500: return "Internal Server Error";
-        default: return "Unknown Status";
-    }
-}
-
 bool Http::spin() {
     bool busy = false;
 
@@ -64,10 +53,24 @@ bool Http::spin() {
             processRequest();
             
             // Send a simple HTTP response
-            client.println("HTTP/1.1 " + String(statuscode) + " " + decodeStatusCode(statuscode));
-            client.println("Content-Type: application/json");
-            client.println("Connection: close");
+            client.print(F("HTTP/1.1 "));
+            client.print(statuscode);
+            client.print(F(" "));
+            
+            if (statuscode == 200) {
+                client.print(F("OK"));
+            } else if (statuscode == 400) {
+                client.print(F("Bad Request"));
+            } else if (statuscode == 404) {
+                client.print(F("Not Found"));
+            } else if (statuscode == 500) {
+                client.print(F("Internal Server Error"));
+            } else {
+                client.print(F("Unknown Status"));
+            }
             client.println();
+
+            client.print(F("Content-Type: application/json\r\nConnection: close\r\n\r\n"));
             client.println(response);
 
             // Close the connection

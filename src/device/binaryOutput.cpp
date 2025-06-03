@@ -11,6 +11,10 @@ bool BinaryOutput::spin() {
     return false; // No periodic action needed
 }
 
+void BinaryOutput::get(setValue& value) {
+    value.b = state; // Get the current state
+}
+
 setterOutput BinaryOutput::set(const setValue& value) {
     state = value.b;
     digitalWrite(pin, state);
