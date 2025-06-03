@@ -16,7 +16,7 @@
 #include "net/modbus.h"
 #endif // USE_MODBUS
 
-#include "interval.h"
+// #include "interval.h"
 
 #include "device/ds18b20.h"
 #include "device/diagLed.h"
@@ -80,6 +80,13 @@ Http httpServer(devices);
 ModbusNode modbusNodes[] = {
     ModbusNode{&sensor1, setValueType::FLOAT, 0, 1,10}, // Sensor 1
     ModbusNode{&sensor2, setValueType::FLOAT, 1, 1,10}, // Sensor 2
+    ModbusNode{&relay1, setValueType::BOOL, 0}, // Relay 1
+    ModbusNode{&relay2, setValueType::BOOL, 1}, // Relay 2
+    ModbusNode{&relay3, setValueType::BOOL, 2}, // Relay 3
+    ModbusNode{&in1, setValueType::BOOL, 3}, // Input 1
+    ModbusNode{&in2, setValueType::BOOL, 4}, // Input 2
+    ModbusNode{&in3, setValueType::BOOL, 5}, // Input 3
+    ModbusNode{&in4, setValueType::BOOL, 6}, // Input 4
     {} // sentinel node
 };
 // Initialize the Modbus server

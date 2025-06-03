@@ -141,10 +141,6 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
             unsigned int startAddress = (rqPayload[0] << 8) | rqPayload[1]; // Get the starting address
             unsigned int quantity = (rqPayload[2] << 8) | rqPayload[3]; // Get the quantity of registers
 
-            if (startAddress < 0) {
-                exceptionCode = ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Invalid address or quantity
-                break;
-            }
             // Prepare the response
             outputBuf[1] = quantity * 2; // Number of bytes to follow
             respPayloadLength =  2 + quantity * 2; // Return the length of the response payload
@@ -157,6 +153,40 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
 
             exceptionCode = getRegisters(startAddress, quantity, &outputBuf[2], maxOutputBufLength - 2);
             
+            break;
+        }
+        case ModbusFunctionCode::READ_COILS:
+        case ModbusFunctionCode::READ_DISCRETE_INPUTS: {
+            if (rqPayloadLength < 2) {
+                exceptionCode = ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Not enough data
+                break;
+            }
+            unsigned int startAddress = (rqPayload[0] << 8) | rqPayload[1]; // Get the starting address
+            unsigned int quantity = (rqPayload[2] << 8) | rqPayload[3]; // Get the quantity of registers
+
+            // Prepare the response
+            unsigned int numBits = quantity; // Number of bits to read
+            unsigned int numBytes = 0;
+            while (numBits > 0) {
+                numBytes++;
+                if (numBits > 8) {
+                    numBits -= 8; // Read 8 bits
+                } else {
+                    numBits = 0; // Read the remaining bits
+                }
+            }
+            outputBuf[1] = numBytes; // Number of bytes to follow
+            respPayloadLength = 2 + numBytes; // Return the length of the response payload
+            
+            if (respPayloadLength > maxOutputBufLength) {
+                // The buffer is too small to hold the response
+                exceptionCode = ModbusExceptionCode::SLAVE_DEVICE_FAILURE;
+                break;
+            }
+
+            // Call a function to get the coils or discrete inputs
+            exceptionCode = getDiscreteInputs(startAddress, quantity, &outputBuf[2], maxOutputBufLength - 2);
+           
             break;
         }
         default: {
@@ -176,6 +206,72 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
     }
 
     return respPayloadLength; // Return the length of the response payload
+}
+
+ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress, 
+                                          unsigned int quantity, 
+                                          unsigned char *outputBuf, 
+                                          const unsigned int &maxOutputBufLength) {
+    if (registerTable == nullptr || outputBuf == nullptr || maxOutputBufLength <= 0) {
+        return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Invalid parameters
+    }
+
+    // Prepare the response
+    unsigned int addr = startAddress;
+    unsigned int endAddress = startAddress + quantity;
+    unsigned int byteIndex = 0; // Index for the output buffer byte
+    unsigned char bitIndex = 0; // Index for the bit within the byte
+    bool bitValue = false; // Value of the bit to be written
+
+    bool found = false; // Flag to check if the address was found in the register table
+    while (addr < endAddress) {
+        found = false; // Reset the found flag for each address
+
+        // Find the corresponding ModbusNode for the address
+        for (ModbusNode *node = registerTable; node->dev != nullptr; ++node) {
+            if (node->startAddress == addr && node->type == setValueType::BOOL) {
+
+                // Check if the output buffer has enough space
+                if ((addr - startAddress) / 8 + 1 >= maxOutputBufLength) {
+                    return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Buffer too small
+                }
+
+                setValue value; // Initialize the value to be written
+                node->dev->get(value); // Get the current value from the device
+
+                // Write the value to the output buffer
+                switch (node->type) {
+                    case setValueType::BOOL:
+                        bitValue = value.b; // Get the boolean value
+                        break;
+                    default:
+                        return ModbusExceptionCode::ILLEGAL_DATA_VALUE; // Unsupported type
+                }
+
+                // Set the bit in the output buffer
+                // first register is at LSB of the first byte
+                outputBuf[byteIndex] |= (bitValue ? 1 : 0) << bitIndex;
+                bitIndex++; // Move to the next bit
+                if (bitIndex >= 8) { // If we have filled the byte, move to the next byte
+                    byteIndex++;
+                    bitIndex = 0; // Reset the bit index
+                    if (byteIndex >= maxOutputBufLength) {
+                        return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Buffer too small
+                    }
+                }
+
+                addr++; // Move to the next address
+                found = true; // Address found in the register table
+                break; // Move to the next address
+            }
+        }
+
+        // If the address was not found in the register table, continue to the next address
+        if (!found) {
+            return ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Address not found
+        }
+    }
+    return ModbusExceptionCode::SUCCESS; // Success
 }
 
 ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress, 
@@ -199,7 +295,9 @@ ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress,
 
         // Find the corresponding ModbusNode for the address
         for (ModbusNode *node = registerTable; node->dev != nullptr; ++node) {
-            if (node->startAddress == addr) {
+            if (node->startAddress == addr &&
+                (node->type == setValueType::INT || node->type == setValueType::FLOAT)
+            ) {
 
                 // Check if the output buffer has enough space
                 if ((addr - startAddress) * 2 + 1 >= maxOutputBufLength) {
@@ -210,11 +308,6 @@ ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress,
 
                 // Write the value to the output buffer
                 switch (node->type) {
-                    case setValueType::BOOL:
-                        // BOOL type not supported in this function
-                        // call getCoils or getDiscreteInputs instead
-                        return ModbusExceptionCode::ILLEGAL_DATA_VALUE; 
-
                     case setValueType::INT:
                         regValue = value.i * node->multiplier; // Get the integer value
                         break;

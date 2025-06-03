@@ -65,7 +65,7 @@ private:
     EthernetServer server;
     EthernetClient client;
 
-    unsigned char mbap[16]; // Buffer for incoming requests
+    unsigned char mbap[8]; // Buffer for incoming requests
     unsigned char pdu[16];
     unsigned char sendbuf[64];
     
@@ -105,5 +105,9 @@ private:
                      unsigned int quantity, 
                      unsigned char *outputBuf, 
                      const unsigned int &maxOutputBufLength);
+    ModbusExceptionCode getDiscreteInputs(unsigned int startAddress,
+                        unsigned int quantity, 
+                        unsigned char *outputBuf, 
+                        const unsigned int &maxOutputBufLength);
 };
 #endif // __MODBUS_H__
