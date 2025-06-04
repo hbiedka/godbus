@@ -6,7 +6,6 @@ bool Modbus::spin() {
     switch (state) {
         case ModbusState::NOT_STARTED:
             server.begin();
-            // Serial.println("Modbus server started");
             state = ModbusState::LISTEN;
             busy = true;
             break;
@@ -186,7 +185,34 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
 
             // Call a function to get the coils or discrete inputs
             exceptionCode = getDiscreteInputs(startAddress, quantity, &outputBuf[2], maxOutputBufLength - 2);
-           
+            break;
+        }
+        case ModbusFunctionCode::WRITE_SINGLE_COIL: {
+            if (rqPayloadLength < 4) {
+                exceptionCode = ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Not enough data
+                break;
+            }
+            unsigned int address = (rqPayload[0] << 8) | rqPayload[1]; // Get the address
+
+            bool value = false; // Initialize the value to be written
+            if (rqPayload[2] == 0xFF && rqPayload[3] == 0x00) {
+                value = true;
+            } else if (rqPayload[2] == 0x00 && rqPayload[3] == 0x00) {
+                value = false;
+            } else {
+                // If the value is not 0xFF00 or 0x0000, it's an invalid value
+                exceptionCode = ModbusExceptionCode::ILLEGAL_DATA_VALUE; // Invalid value
+                break;
+            }
+
+            respPayloadLength = 5; // Length of the response payload
+            outputBuf[1] = rqPayload[0]; // Echo back the address
+            outputBuf[2] = rqPayload[1];
+            outputBuf[3] = rqPayload[2];
+            outputBuf[4] = rqPayload[3];
+
+            exceptionCode = writeSingleCoil(address,value);
+
             break;
         }
         default: {
@@ -206,6 +232,38 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
     }
 
     return respPayloadLength; // Return the length of the response payload
+}
+
+ModbusExceptionCode Modbus::writeSingleCoil(unsigned int address, bool value) {
+    
+    setterOutput setterOut = setterOutput::OK; // Initialize the setter output
+
+    // Find the corresponding ModbusNode for the address
+    for (ModbusNode *node = registerTable; node->dev != nullptr; ++node) {
+        if (node->startAddress == address && node->type == setValueType::BOOL) {
+            setValue val;
+            val.b = value;
+            setterOut = node->dev->set(val); // Set the value in the device
+            
+            // handle the output of the setter
+            if (setterOut == setterOutput::NOT_SUPPORTED) {
+                return ModbusExceptionCode::ILLEGAL_FUNCTION; // Function not supported
+            } else if (setterOut == setterOutput::READ_ONLY) {
+                return ModbusExceptionCode::ILLEGAL_DATA_VALUE; // Value is read-only
+            } else if (setterOut == setterOutput::INVALID_VALUE) {
+                return ModbusExceptionCode::ILLEGAL_DATA_VALUE; // Invalid value
+            } else if (setterOut != setterOutput::OK) {
+                return ModbusExceptionCode::SLAVE_DEVICE_FAILURE; // Device failed to set the value
+            }
+
+            //OK
+            return ModbusExceptionCode::SUCCESS;
+        }
+    }
+    
+    //if match address not found
+    return ModbusExceptionCode::ILLEGAL_DATA_ADDRESS; // Address not found
+                                
 }
 
 ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress, 

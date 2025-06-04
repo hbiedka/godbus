@@ -109,5 +109,6 @@ private:
                         unsigned int quantity, 
                         unsigned char *outputBuf, 
                         const unsigned int &maxOutputBufLength);
+    ModbusExceptionCode writeSingleCoil(unsigned int address, bool value);
 };
 #endif // __MODBUS_H__
