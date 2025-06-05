@@ -164,16 +164,9 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
             unsigned int quantity = (rqPayload[2] << 8) | rqPayload[3]; // Get the quantity of registers
 
             // Prepare the response
-            unsigned int numBits = quantity; // Number of bits to read
-            unsigned int numBytes = 0;
-            while (numBits > 0) {
-                numBytes++;
-                if (numBits > 8) {
-                    numBits -= 8; // Read 8 bits
-                } else {
-                    numBits = 0; // Read the remaining bits
-                }
-            }
+            unsigned int numBytes = quantity >> 3; // div by 8 without residue, but faster
+            if (quantity % 8 > 0) numBytes++;
+
             outputBuf[1] = numBytes; // Number of bytes to follow
             respPayloadLength = 2 + numBytes; // Return the length of the response payload
             
@@ -281,6 +274,12 @@ ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress,
     unsigned char bitIndex = 0; // Index for the bit within the byte
     bool bitValue = false; // Value of the bit to be written
 
+    //reset output buffer
+    unsigned int numBytes = quantity >> 3; // div by 8 without residue, but faster
+    if (quantity % 8 > 0) numBytes++;
+    for (unsigned int i = 0; i < numBytes; i++)
+        outputBuf[i] = 0;
+
     bool found = false; // Flag to check if the address was found in the register table
     while (addr < endAddress) {
         found = false; // Reset the found flag for each address
@@ -308,7 +307,7 @@ ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress,
 
                 // Set the bit in the output buffer
                 // first register is at LSB of the first byte
-                outputBuf[byteIndex] |= (bitValue ? 1 : 0) << bitIndex;
+                outputBuf[byteIndex] |= ((bitValue ? 1 : 0) << bitIndex);
                 bitIndex++; // Move to the next bit
                 if (bitIndex >= 8) { // If we have filled the byte, move to the next byte
                     byteIndex++;
