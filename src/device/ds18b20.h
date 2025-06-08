@@ -32,7 +32,7 @@ class DS18B20 : public Device {
         DS18B20(String _name, int _pin);
         bool spin() override;
         void get(setValue &value) override;
-        String serialize() override;
+        unsigned int serialize(char *s, size_t len) override;
         setValueType getType() override { return setValueType::FLOAT; }
 };
 

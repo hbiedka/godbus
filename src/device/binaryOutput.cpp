@@ -22,8 +22,14 @@ setterOutput BinaryOutput::set(const setValue& value) {
     return setterOutput::OK;
 }
 
-String BinaryOutput::serialize() {
-    return String(state);
+unsigned int BinaryOutput::serialize(char *s, size_t len) {
+    
+    //if no place to write
+    if (len < 1) return 0;
+
+    s[0] = state ? '1' : '0';
+    s[1] = '\0';
+    return 1; 
 }
 
 setterOutput BinaryOutput::deserialize(const String& value) {

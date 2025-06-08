@@ -54,7 +54,13 @@ bool BinaryInput::getState() {
     return state == InputState::ON || state == InputState::DEBOUNCE_OFF;
 }
 
-String BinaryInput::serialize() {
-    return String(getState());
+unsigned int BinaryInput::serialize(char *s, size_t len) {
+
+    //if no place to write
+    if (len < 1) return 0;
+
+    s[0] = getState() ? '1' : '0';
+    s[1] = '\0';
+    return 1; 
 }
 

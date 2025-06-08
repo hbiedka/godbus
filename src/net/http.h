@@ -6,6 +6,8 @@
 
 #include "device/device.h"
 
+#define MAX_DEV_DATA_LEN 16
+#define MAX_REQUEST_SIZE 64
 #define MAX_RESPONSE_SIZE 256
 
 enum class HttpState {
@@ -23,7 +25,8 @@ private:
     EthernetClient client;
     HttpState state = HttpState::NOT_STARTED;
     int statuscode = 200; // Default status code
-    String request;
+    char request[MAX_REQUEST_SIZE];
+    unsigned char rqLen = 0;
     char response[MAX_RESPONSE_SIZE]; // Buffer for the response;
     void processRequest();
     void prepareResponse();

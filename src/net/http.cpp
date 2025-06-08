@@ -17,7 +17,8 @@ bool Http::spin() {
             // Check for incoming clients
             client = server.available();
             if (client) {
-                request = "";
+                rqLen = 0;
+                statuscode = 200;
                 state = HttpState::RECV_REQUEST;
             }
             break;
@@ -28,14 +29,19 @@ bool Http::spin() {
             } else {
                 while (client.available()) {
                     busy = true;
-                    char c = client.read();
-                    if (c == '\r') {
+                    request[rqLen] = client.read();
+                    if (request[rqLen] == '\r') {
                         // End of request
                         // Send response
+                        request[rqLen] = '\0';
                         state = HttpState::FLUSHING;
                         break;
                     }
-                    request += c;
+                    rqLen++;
+                    if (rqLen >= MAX_REQUEST_SIZE) {
+                        statuscode = 500; //TODO "rq too long statuscode"
+                        state = HttpState::FLUSHING;
+                    }
                 }
             }
             break;
@@ -85,42 +91,57 @@ bool Http::spin() {
 void Http::processRequest() {
     // Process the request here
     snprintf(response, MAX_RESPONSE_SIZE, "{}");
-    
-    //get URL from request
-    int start = request.indexOf("GET ") + 4; // 5 is the length of "GET /"
-    //read url until space or end of line
-    int end = request.indexOf(' ', start);
-    if (end == -1) {
-        end = request.indexOf('\n', start);
-    }
 
-    if (start == -1 || end == -1) {
-        statuscode = 400; // Bad Request
+    if (statuscode != 200) {
+        //there was an error during receiving request eg, request too long
         return;
     }
-    
-    String url = request.substring(start, end);
+
+    if (strncmp(request,"GET ",4) != 0) {
+        statuscode = 400;   // Bad request
+        return;
+    }
+
+    char *url = &request[4];
+
+    for (int i = 0; i < (MAX_REQUEST_SIZE-4); i++ ) {
+        if (url[i] == ' ' || url[i] == '\r' || url[i] == '\n' || url[i] == '\0') {
+            url[i] = '\0';
+        }
+    }
     
     // Check if the URL is valid and process it
-    if (url == "/") {
+    if (strncmp(url,"/",1) == 0 && strlen(url) == 1) {
         // Prepare the response with all devices
         prepareResponse();
         return;
-    } else {
-        //process url /device_id/state
-        int deviceIdEnd = url.indexOf('/', 1); // Find the first '/' after the initial '/'
-        if (deviceIdEnd == -1) {
-            statuscode = 400; // Bad Request
+    } else if (strncmp(url,"/",1) == 0) {
+        char *deviceId = &url[1];
+        char *state = nullptr;
+
+        for (int i = 1; url[i] != '\0'; i++) {
+            if (url[i] == '/') {
+                url[i] = '\0';
+                state = &url[i+1];
+                break;
+            } else if (url[i] == ' ' || url[i] == ' ' || url[i] == '\r' || url[i] == '\n') {
+                break;
+            }
+        }
+
+        if (state == nullptr) {
+            // Serial.println("state not found");
+            statuscode = 400;  //Bad request
             return;
         }
-        String deviceId = url.substring(1, deviceIdEnd); // Extract the device ID
-        String state = url.substring(deviceIdEnd + 1); // Extract the state
 
         // Find the device by ID
         for (Device** dev = devices; *dev != nullptr; ++dev) {
-            if (strncmp((*dev)->getName(), deviceId.c_str(), MAX_NAME_SIZE) == 0) {
+            if (strncmp((*dev)->getName(), deviceId, MAX_NAME_SIZE) == 0) {
                 // Device found, set the state
-                setterOutput result = (*dev)->deserialize(state);
+
+                //TODO convert deserialize to const char
+                setterOutput result = (*dev)->deserialize(String(state));
 
                 if (result == setterOutput::OK) {
                     snprintf(response, MAX_RESPONSE_SIZE, "{\"status\": \"OK\"}");
@@ -154,13 +175,15 @@ void Http::prepareResponse() {
 
         // Serialize the device and add it to the response
         const char* deviceName = (*dev)->getName();
-        String deviceData = (*dev)->serialize();
+        // String deviceData = (*dev)->serialize();
+        char deviceData[MAX_DEV_DATA_LEN];
+        (*dev)->serialize(deviceData,MAX_DEV_DATA_LEN);        
         
         responseLength += snprintf(&response[responseLength], 
             MAX_RESPONSE_SIZE - responseLength,
             "\"%s\": \"%s\"", 
             deviceName, 
-            deviceData.c_str()
+            deviceData
         );
     }
     responseLength += snprintf(&response[responseLength], 

@@ -57,10 +57,12 @@ void DS18B20::get(setValue &value) {
     value.f = temperature;
 }
 
-String DS18B20::serialize() {
+unsigned int DS18B20::serialize(char *s, size_t len) {
     if (state == DS18B20State::ERROR || state == DS18B20State::STARTING) {
-        return "null";
+        snprintf(s,len,"null");
+    } else {
+        dtostrf(temperature,3,2,s);
     }
-    String result = String(temperature);
-    return result;
+
+    return strlen(s);
 }

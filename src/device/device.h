@@ -32,7 +32,7 @@ protected:
 public:
     virtual bool spin() = 0;
     virtual setValueType getType() = 0;
-    virtual String serialize() = 0;
+    virtual unsigned int serialize(char *s, size_t len) = 0;
     
     virtual void get(setValue&) {};
     virtual const char* getName() { return name; }
