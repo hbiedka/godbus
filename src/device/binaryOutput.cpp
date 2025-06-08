@@ -32,16 +32,32 @@ unsigned int BinaryOutput::serialize(char *s, size_t len) {
     return 1; 
 }
 
-setterOutput BinaryOutput::deserialize(const String& value) {
+setterOutput BinaryOutput::deserialize(char *s, size_t len) {
     bool newState = false;
     
     // lowercase the value for easier comparison
-    String lowerValue = value;
-    lowerValue.toLowerCase();
+    // String lowerValue(s);
+    // lowerValue.toLowerCase();
 
-    if (lowerValue == "true" || lowerValue == "1" || lowerValue == "on") {
+    char lowercase[len];
+    for (size_t i = 0; i < len; i++) {
+        if(s[i] >= 'A' && s[i] <= 'Z') {
+            lowercase[i] = s[i] + 32;
+        } else {
+            lowercase[i] = s[i];
+        }
+        if (s[i] == '\0') break;
+    }
+
+    if (strcmp(lowercase,"true") == 0 ||
+                strcmp(lowercase,"on") == 0 || 
+                strcmp(lowercase,"1") == 0 ) 
+    {
         newState = true;
-    } else if (lowerValue == "false" || lowerValue == "0" || lowerValue == "off") {
+    } else  if (strcmp(lowercase,"false") == 0 ||
+        strcmp(lowercase,"off") == 0 || 
+        strcmp(lowercase,"0") == 0 )
+    {
         newState = false;
     } else {
         return setterOutput::INVALID_VALUE; // Invalid value

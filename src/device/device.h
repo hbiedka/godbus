@@ -39,7 +39,7 @@ public:
     virtual setterOutput set(const setValue&) { 
         return setterOutput::NOT_SUPPORTED; 
     };
-    virtual setterOutput deserialize(const String& value) {
+    virtual setterOutput deserialize(char *s, size_t len) {
         return setterOutput::NOT_SUPPORTED;
     }
 

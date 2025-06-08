@@ -141,7 +141,7 @@ void Http::processRequest() {
                 // Device found, set the state
 
                 //TODO convert deserialize to const char
-                setterOutput result = (*dev)->deserialize(String(state));
+                setterOutput result = (*dev)->deserialize(state,MAX_DEV_DATA_LEN);
 
                 if (result == setterOutput::OK) {
                     snprintf(response, MAX_RESPONSE_SIZE, "{\"status\": \"OK\"}");

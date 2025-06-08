@@ -16,7 +16,7 @@ class BinaryOutput : public Device {
         setterOutput set(const setValue &value) override;
         void get(setValue &value) override;
         unsigned int serialize(char *s, size_t len) override;
-        setterOutput deserialize(const String &value) override;
+        setterOutput deserialize(char *s, size_t len) override;
         setValueType getType() override { return setValueType::BOOL; }
 };
 
