@@ -35,10 +35,6 @@ unsigned int BinaryOutput::serialize(char *s, size_t len) {
 setterOutput BinaryOutput::deserialize(char *s, size_t len) {
     bool newState = false;
     
-    // lowercase the value for easier comparison
-    // String lowerValue(s);
-    // lowerValue.toLowerCase();
-
     char lowercase[len];
     for (size_t i = 0; i < len; i++) {
         if(s[i] >= 'A' && s[i] <= 'Z') {

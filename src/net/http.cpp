@@ -39,7 +39,7 @@ bool Http::spin() {
                     }
                     rqLen++;
                     if (rqLen >= MAX_REQUEST_SIZE) {
-                        statuscode = 500; //TODO "rq too long statuscode"
+                        statuscode = 414; //URL too long
                         state = HttpState::FLUSHING;
                     }
                 }
@@ -69,6 +69,8 @@ bool Http::spin() {
                 client.print(F("Bad Request"));
             } else if (statuscode == 404) {
                 client.print(F("Not Found"));
+            } else if (statuscode == 414) {
+                client.print(F("URI Too Long"));
             } else if (statuscode == 500) {
                 client.print(F("Internal Server Error"));
             } else {

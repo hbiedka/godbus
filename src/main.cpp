@@ -1,23 +1,28 @@
 #include "main.h"
 
 void setup() {
+
+#ifdef USE_SERIAL
   Serial.begin(115200);
   while (!Serial);
+#endif
 
   // Start Ethernet connection
   Ethernet.begin(mac, ip);
 
   delay(1000);
+  diagLed.blink();
+
+#ifdef USE_SERIAL
   Serial.print("IP: ");
   Serial.println(Ethernet.localIP());
-
-  diagLed.blink();
 
   // list all devices
   for (Device** dev = devices; *dev != nullptr; ++dev) {
     Serial.print("Device: ");
     Serial.println((*dev)->getName());
   }
+#endif
 }
 
 void loop() {
