@@ -1,5 +1,6 @@
 #define USE_MODBUS // Uncomment to enable Modbus support
 #define USE_HTTP // Uncomment to enable HTTP server support
+//#define USE_SERIAL // Uncomment to enable debug serial
 
 #include <Arduino.h>
 
@@ -15,8 +16,6 @@
 #ifdef USE_MODBUS
 #include "net/modbus.h"
 #endif // USE_MODBUS
-
-// #include "interval.h"
 
 #include "device/ds18b20.h"
 #include "device/diagLed.h"
@@ -90,7 +89,7 @@ ModbusNode modbusNodes[] = {
     {} // sentinel node
 };
 // Initialize the Modbus server
-Modbus modbusServer(modbusNodes); // Modbus TCP server on port 502
+ModbusServer modbusServer(modbusNodes);
 #endif // USE_MODBUS
 
 // Initialize the diagnostic LED

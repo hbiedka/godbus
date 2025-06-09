@@ -1,28 +1,41 @@
 #include "modbus.h"
 
-bool Modbus::spin() {
+bool ModbusClient::isAssignedToMe(EthernetClient &c) {
+    return (client.getSocketNumber() == c.getSocketNumber());
+}
+
+bool ModbusClient::tryAssignNewConnection(const EthernetClient &c) {
+    if (state != ModbusState::LISTEN)
+        return false;
+    client = c;
+    state = ModbusState::START_RECV;
+    return true;
+}
+
+bool ModbusClient::spin() {
     bool busy = false;
+
+    //if not initialized
+    if (server == nullptr) return false;
 
     switch (state) {
         case ModbusState::NOT_STARTED:
-            server.begin();
+            //Dummy state, go to listen
             state = ModbusState::LISTEN;
-            busy = true;
             break;
 
         case ModbusState::LISTEN:
-            client = server.available();
-            if (client) {
-                mbapReceived = 0; // Reset the MBAP received counter
-                state = ModbusState::RECV_MBAP;
-                busy = true;
-            }
+            //nothing to do here, we are waiting for assigning a new connection
+            break;
+        
+        case ModbusState::START_RECV:
+            mbapReceived = 0;
+            state = ModbusState::RECV_MBAP;
             break;
 
         case ModbusState::RECV_MBAP:
             if (!client.connected()) {
-                state = ModbusState::LISTEN; // If client disconnected, go back to listening
-                busy = true;
+                state = ModbusState::CEASING_CONNECTION; // If client disconnected, cease connection
                 break;
             }
 
@@ -40,8 +53,7 @@ bool Modbus::spin() {
 
         case ModbusState::RECV_PDU:
             if (!client.connected()) {
-                state = ModbusState::LISTEN; // If client disconnected, go back to listening
-                busy = true;
+                state = ModbusState::CEASING_CONNECTION; // If client disconnected, cease connection
                 break;
             }
             // Read the PDU data
@@ -66,19 +78,26 @@ bool Modbus::spin() {
             break;
 
         case ModbusState::SENDING_RESPONSE:
-            if (client.connected()) {
-                client.write(sendbuf, sendbufLength);
-                // client.stop(); // Close the connection
-                state = ModbusState::LISTEN; // Go back to listening for new clients
-                busy = true;
+            if (!client.connected()) {
+                state = ModbusState::CEASING_CONNECTION; // If client disconnected, cease connection
+                break;
             }
+
+            client.write(sendbuf, sendbufLength);
+            //client.stop(); // Close the connection
+            busy = true;
+            state = ModbusState::START_RECV; // start receiving new packets
             break;
+        case ModbusState::CEASING_CONNECTION:
+            client.stop();
+            busy = true;
+            state = ModbusState::LISTEN; //go back to listen
     }
 
     return busy;
 }
 
-void Modbus::processRequest() {
+void ModbusClient::processRequest() {
     
     //validate the MBAP header
     int pid = (mbap[2] << 8) | mbap[3]; // Protocol ID
@@ -116,7 +135,7 @@ void Modbus::processRequest() {
     sendbufLength = mbapLength + respPayloadLength; // 7 bytes for MBAP + 2 bytes for PDU (function code + exception code)
     
 }
-int Modbus::modbusQuery(const ModbusFunctionCode &functionCode, 
+int ModbusClient::modbusQuery(const ModbusFunctionCode &functionCode, 
                 unsigned char *rqPayload, 
                 const int &rqPayloadLength, 
                 unsigned char *outputBuf, 
@@ -227,7 +246,7 @@ int Modbus::modbusQuery(const ModbusFunctionCode &functionCode,
     return respPayloadLength; // Return the length of the response payload
 }
 
-ModbusExceptionCode Modbus::writeSingleCoil(unsigned int address, bool value) {
+ModbusExceptionCode ModbusClient::writeSingleCoil(unsigned int address, bool value) {
     
     setterOutput setterOut = setterOutput::OK; // Initialize the setter output
 
@@ -259,7 +278,7 @@ ModbusExceptionCode Modbus::writeSingleCoil(unsigned int address, bool value) {
                                 
 }
 
-ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress, 
+ModbusExceptionCode ModbusClient::getDiscreteInputs(unsigned int startAddress, 
                                           unsigned int quantity, 
                                           unsigned char *outputBuf, 
                                           const unsigned int &maxOutputBufLength) {
@@ -331,7 +350,7 @@ ModbusExceptionCode Modbus::getDiscreteInputs(unsigned int startAddress,
     return ModbusExceptionCode::SUCCESS; // Success
 }
 
-ModbusExceptionCode Modbus::getRegisters(unsigned int startAddress, 
+ModbusExceptionCode ModbusClient::getRegisters(unsigned int startAddress, 
                                           unsigned int quantity, 
                                           unsigned char *outputBuf, 
                                           const unsigned int &maxOutputBufLength) {

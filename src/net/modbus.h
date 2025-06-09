@@ -7,6 +7,8 @@
 
 #include "device/device.h"
 
+#define MODBUS_SOCKETS 2
+
 struct ModbusNode {
     Device *dev; // Pointer to the device
     setValueType type; // Type of the device value
@@ -27,10 +29,12 @@ struct ModbusNode {
 enum class ModbusState {
     NOT_STARTED,
     LISTEN,
+    START_RECV,
     RECV_MBAP,
     RECV_PDU,
     PROCESS_REQUEST,
     SENDING_RESPONSE,
+    CEASING_CONNECTION,
 };
 
 enum class ModbusFunctionCode {
@@ -60,9 +64,9 @@ enum class ModbusExceptionCode {
     GATEWAY_TARGET_DEVICE_FAILED_TO_RESPOND = 0x0B
 };
 
-class Modbus {
+class ModbusClient {
 private:
-    EthernetServer server;
+    EthernetServer *server;
     EthernetClient client;
 
     unsigned char mbap[8]; // Buffer for incoming requests
@@ -76,25 +80,23 @@ private:
     int pduLength = 0; // Length of the PDU
     int sendbufLength = 0; // Length of the send buffer
 
-    // example register table for testing purposes
-    // int exampleRegisterTable[10] = {0, 145, 217, 3442, 4119, 5927, 611, 77, 80, 925};
-
     ModbusNode *registerTable = nullptr; // Pointer to the example register table
 
     ModbusState state = ModbusState::NOT_STARTED;
 
     public:
-    Modbus(ModbusNode *regs, uint16_t port) : 
-        server(port) 
-    {
-        registerTable = regs; // Initialize the register table with the provided nodes
-    };
-    Modbus(ModbusNode *regs) : 
-    server(502) // Default Modbus TCP port
+    ModbusClient() :
+        server(nullptr),
+        registerTable(nullptr)
+    {}
+    ModbusClient(EthernetServer *srv, ModbusNode *regs) : 
+        server(srv)
     {
         registerTable = regs; // Initialize the register table with the provided nodes
     };
     bool spin();
+    bool isAssignedToMe(EthernetClient &c);
+    bool tryAssignNewConnection(const EthernetClient &c);
     void processRequest();
     int modbusQuery(const ModbusFunctionCode &functionCode, 
                     unsigned char *rqPayload, 
@@ -111,4 +113,69 @@ private:
                         const unsigned int &maxOutputBufLength);
     ModbusExceptionCode writeSingleCoil(unsigned int address, bool value);
 };
+
+class ModbusServer {
+    private:
+        EthernetServer server;
+        ModbusNode *registerTable = nullptr; // Pointer to the example register table
+        ModbusClient socket[MODBUS_SOCKETS];
+
+        bool started = false;
+
+    public:
+        ModbusServer(ModbusNode *regs, uint16_t port) : 
+        server(port) 
+        {
+            registerTable = regs; // Initialize the register table with the provided nodes
+        };
+        ModbusServer(ModbusNode *regs) : 
+        server(502) // Default Modbus TCP port
+        {
+            registerTable = regs; // Initialize the register table with the provided nodes
+        };
+
+        bool spin() {
+            bool busy = false;
+
+            if (!started) {
+                server.begin();
+                for (size_t i = 0; i < MODBUS_SOCKETS; i++) {
+                    socket[i] = ModbusClient(&server,registerTable);
+                }
+                started = true;
+                return true;
+            }
+
+            //if new connection
+            EthernetClient newClient = server.available();
+            if (newClient) {
+
+                //look for duplicates
+                bool duplicate = false;
+                for(size_t i = 0; i < MODBUS_SOCKETS; i++) {
+                    if(socket[i].isAssignedToMe(newClient)) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (!duplicate) {
+                    //find available client
+                    for (size_t i = 0; i < MODBUS_SOCKETS; i++) {
+                        if (socket[i].tryAssignNewConnection(newClient)) {
+                            break;
+                        }
+                    }
+                }
+            }
+            for (size_t i = 0; i < MODBUS_SOCKETS; i++) {
+                busy |= socket[i].spin();
+            }
+
+            return busy;
+
+        }
+
+
+};
+
 #endif // __MODBUS_H__
