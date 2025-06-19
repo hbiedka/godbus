@@ -5,9 +5,9 @@
 #include <Arduino.h>
 #include <Ethernet.h>
 
+#include "config.h"
+#include "debugSerial.h"
 #include "device/device.h"
-
-#define MODBUS_SOCKETS 2
 
 struct ModbusNode {
     Device *dev; // Pointer to the device
@@ -162,6 +162,8 @@ class ModbusServer {
                     //find available client
                     for (size_t i = 0; i < MODBUS_SOCKETS; i++) {
                         if (socket[i].tryAssignNewConnection(newClient)) {
+                            DEBUG("New Modbus connection assigned to socket");
+                            DEBUGLN(newClient.getSocketNumber());
                             break;
                         }
                     }

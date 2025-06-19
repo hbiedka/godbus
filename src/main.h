@@ -1,6 +1,7 @@
-#define USE_MODBUS // Uncomment to enable Modbus support
-#define USE_HTTP // Uncomment to enable HTTP server support
-//#define USE_SERIAL // Uncomment to enable debug serial
+#ifndef MAIN_H
+#define MAIN_H
+
+#include "config.h"
 
 #include <Arduino.h>
 
@@ -21,6 +22,8 @@
 #include "device/diagLed.h"
 #include "device/binaryInput.h"
 #include "device/binaryOutput.h"
+
+#include "debugSerial.h"
 
 // MAC address must be unique on your network
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -94,3 +97,5 @@ ModbusServer modbusServer(modbusNodes);
 
 // Initialize the diagnostic LED
 DiagLed diagLed(DIAG_LED);
+
+#endif // MAIN_H

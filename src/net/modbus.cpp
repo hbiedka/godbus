@@ -89,6 +89,10 @@ bool ModbusClient::spin() {
             state = ModbusState::START_RECV; // start receiving new packets
             break;
         case ModbusState::CEASING_CONNECTION:
+            DEBUG("SOCKET: ");
+            DEBUG(client.getSocketNumber());
+            DEBUGLN(" Connection ceased.");
+            
             client.stop();
             busy = true;
             state = ModbusState::LISTEN; //go back to listen
@@ -108,7 +112,21 @@ void ModbusClient::processRequest() {
     // get data from the MBAP header and PDU
     char unitId = mbap[6]; // Get the Unit ID from the MBAP header
     ModbusFunctionCode functionCode = static_cast<ModbusFunctionCode>(pdu[0]); // Get the function code from the PDU
-    
+
+    DEBUG("SOCKET: ");
+    DEBUG(client.getSocketNumber());
+    DEBUG(" MBAP: ");
+    for (int i = 0; i < mbapLength; i++) {
+        DEBUGHEX(mbap[i]);
+        DEBUG(" ");
+    }
+    DEBUG("; UID: ");
+    DEBUG(static_cast<unsigned short>(unitId));
+    DEBUG(" FC: 0x");
+    DEBUGHEX(static_cast<unsigned char>(functionCode));
+    DEBUGLN("");
+
+
     unsigned char *rqPayload = &pdu[1]; // Pointer to the payload data in the PDU
     int rqPayloadLength = pduLength - 1; // Length of the payload (excluding function code)
 
