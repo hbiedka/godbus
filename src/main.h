@@ -15,7 +15,7 @@
 #endif // USE_HTTP
 
 #ifdef USE_MODBUS
-#include "net/modbus.h"
+#include "net/modbusServer.h"
 #endif // USE_MODBUS
 
 #include "device/ds18b20.h"
